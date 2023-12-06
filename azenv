@@ -1,0 +1,65 @@
+#!/bin/bash
+
+usage_exit() {
+  cat <<EOF
+Usage: $0 [options...] [command [args...]]
+       $0 [options...]
+
+Set Azure CLI environment variables and execute.
+If no command given, azenv output credential environment variables for exporting.
+
+Options:
+
+  -p PROFILE    Specify profile. If unspecified or 'default', use default profile.
+  -h            Show this help.
+
+
+For more information, see <https://github.com/buzztaiki/azenv>.
+
+EOF
+  exit "$1"
+}
+
+export_variable() {
+  local shell="$1" key="$2" value="$3"
+  if [ "$shell" = fish ]; then
+    echo "set -x $key '$value'"
+  else
+    echo "export $key='$value'"
+  fi
+}
+
+export_env() {
+  local shell="$1"
+  export_variable "$shell" AZURE_CONFIG_DIR "$(azure_config_dir)"
+}
+
+xdg_state_home() {
+  echo "${XDG_STATE_HOME:-$HOME/.local/state}"
+}
+
+azure_config_dir() {
+  if [[ "$profile" = default ]]; then
+    echo "$HOME/.azure"
+  else
+    echo "$(xdg_state_home)/azenv/$profile"
+  fi
+}
+
+profile=default
+while getopts p:h OPT
+do
+  case $OPT in
+    p) profile=$OPTARG ;;
+    h) usage_exit 0 ;;
+    *) usage_exit 1 1>&2 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+if [ $# -eq 0 ]; then
+  export_env "$(basename "$SHELL")"
+else
+  eval "$(export_env bash)"
+  "$@"
+fi
